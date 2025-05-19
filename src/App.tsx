@@ -4,11 +4,11 @@ import { useThemeStore } from './store/themeStore';
 import { Header } from './components/layout/Header';
 import { Dashboard } from './pages/Dashboard';
 import { Home } from './pages/Home';
+import { Workflows } from './pages/Workflows';
 
 function App() {
   const { mode } = useThemeStore();
 
-  // Apply dark mode class to document
   useEffect(() => {
     if (mode === 'dark') {
       document.documentElement.classList.add('dark');
@@ -25,6 +25,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/workflows" element={<Workflows />} />
           </Routes>
         </main>
       </BrowserRouter>

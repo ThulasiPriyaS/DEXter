@@ -1,6 +1,6 @@
 import express from 'express';
 import { z } from 'zod';
-import { saveWorkflow, getWorkflows, deleteWorkflow } from '../db/database.js';
+import { saveWorkflow, getWorkflows, deleteWorkflow, getWorkflowById, duplicateWorkflow } from '../db/database.js';
 import { executeWorkflow } from '../services/simulateService.js';
 
 export const router = express.Router();
@@ -28,6 +28,65 @@ const WorkflowSchema = z.object({
   description: z.string().optional(),
   modules: z.array(ModuleSchema),
   connections: z.array(ConnectionSchema)
+});
+
+// Get all workflows
+router.get('/workflows', (req, res) => {
+  try {
+    const { wallet } = req.query;
+    if (!wallet) {
+      return res.status(400).json({ error: 'Wallet address is required' });
+    }
+
+    const workflows = getWorkflows(wallet);
+    res.json({ workflows });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch workflows', message: error.message });
+  }
+});
+
+// Get single workflow
+router.get('/workflows/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { wallet } = req.query;
+    
+    if (!wallet) {
+      return res.status(400).json({ error: 'Wallet address is required' });
+    }
+
+    const workflow = getWorkflowById(id, wallet);
+    
+    if (!workflow) {
+      return res.status(404).json({ error: 'Workflow not found' });
+    }
+    
+    res.json({ workflow });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch workflow', message: error.message });
+  }
+});
+
+// Duplicate workflow
+router.post('/workflows/:id/duplicate', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { wallet } = req.query;
+    
+    if (!wallet) {
+      return res.status(400).json({ error: 'Wallet address is required' });
+    }
+
+    const newWorkflow = duplicateWorkflow(id, wallet);
+    
+    if (!newWorkflow) {
+      return res.status(404).json({ error: 'Workflow not found' });
+    }
+    
+    res.json(newWorkflow);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to duplicate workflow', message: error.message });
+  }
 });
 
 // Execute workflow
@@ -66,23 +125,8 @@ router.post('/save', async (req, res) => {
   }
 });
 
-// Get workflows
-router.get('/load', (req, res) => {
-  try {
-    const { wallet } = req.query;
-    if (!wallet) {
-      return res.status(400).json({ error: 'Wallet address is required' });
-    }
-
-    const workflows = getWorkflows(wallet);
-    res.json({ workflows });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to load workflows', message: error.message });
-  }
-});
-
 // Delete workflow
-router.delete('/delete/:id', (req, res) => {
+router.delete('/workflows/:id', (req, res) => {
   try {
     const { id } = req.params;
     const { wallet } = req.query;

@@ -54,8 +54,50 @@ export function getWorkflows(walletAddress) {
   }));
 }
 
+export function getWorkflowById(id, walletAddress) {
+  const stmt = db.prepare('SELECT * FROM workflows WHERE id = ? AND wallet_address = ?');
+  const workflow = stmt.get(id, walletAddress);
+
+  if (!workflow) return null;
+
+  return {
+    ...workflow,
+    modules: JSON.parse(workflow.modules),
+    connections: JSON.parse(workflow.connections)
+  };
+}
+
 export function deleteWorkflow(id, walletAddress) {
   const stmt = db.prepare('DELETE FROM workflows WHERE id = ? AND wallet_address = ?');
   const result = stmt.run(id, walletAddress);
   return result.changes > 0;
+}
+
+export function duplicateWorkflow(id, walletAddress) {
+  const workflow = getWorkflowById(id, walletAddress);
+  
+  if (!workflow) return null;
+
+  const newId = nanoid();
+  const timestamp = Date.now();
+
+  const stmt = db.prepare(`
+    INSERT INTO workflows (
+      id, wallet_address, name, description, 
+      modules, connections, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+
+  stmt.run(
+    newId,
+    walletAddress,
+    `${workflow.name} (Copy)`,
+    workflow.description,
+    JSON.stringify(workflow.modules),
+    JSON.stringify(workflow.connections),
+    timestamp,
+    timestamp
+  );
+
+  return getWorkflowById(newId, walletAddress);
 }
