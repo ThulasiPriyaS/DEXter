@@ -2,9 +2,21 @@ import React from 'react';
 import { ArrowRight, Zap, Shield, Code, Workflow } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useWalletStore } from '../store/walletStore';
 
 export const Home: React.FC = () => {
+  const navigate = useNavigate();
+  const { token } = useWalletStore();
+
+  const handleGetStarted = () => {
+    if (token) {
+      navigate('/dashboard');
+    } else {
+      navigate('/auth');
+    }
+  };
+
   return (
     <div className="w-full">
       {/* Hero Section */}
@@ -24,8 +36,7 @@ export const Home: React.FC = () => {
                 size="lg"
                 className="bg-gradient-to-r from-indigo-500 to-violet-500 hover:from-indigo-600 hover:to-violet-600 border-none"
                 rightIcon={<ArrowRight />}
-                as={Link}
-                to="/dashboard"
+                onClick={handleGetStarted}
               >
                 Start Building
               </Button>
@@ -33,6 +44,7 @@ export const Home: React.FC = () => {
                 variant="outline" 
                 size="lg"
                 className="border-indigo-300 text-white hover:bg-indigo-800/30"
+                onClick={() => navigate('/learn')}
               >
                 Learn More
               </Button>
@@ -96,8 +108,7 @@ export const Home: React.FC = () => {
             </p>
             <Button 
               size="lg"
-              as={Link}
-              to="/dashboard"
+              onClick={handleGetStarted}
               rightIcon={<ArrowRight />}
             >
               Get Started Now
