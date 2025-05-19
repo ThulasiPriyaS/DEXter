@@ -1,10 +1,18 @@
 import React, { useEffect } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useThemeStore } from './store/themeStore';
+import { useWalletStore } from './store/walletStore';
 import { Header } from './components/layout/Header';
 import { Dashboard } from './pages/Dashboard';
 import { Home } from './pages/Home';
 import { Workflows } from './pages/Workflows';
+import { Auth } from './pages/Auth';
+
+// Protected Route component
+const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const token = useWalletStore((state) => state.token);
+  return token ? <>{children}</> : <Navigate to="/auth" />;
+};
 
 function App() {
   const { mode } = useThemeStore();
@@ -24,8 +32,23 @@ function App() {
         <main className="flex-grow">
           <Routes>
             <Route path="/" element={<Home />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/workflows" element={<Workflows />} />
+            <Route path="/auth" element={<Auth />} />
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/workflows"
+              element={
+                <ProtectedRoute>
+                  <Workflows />
+                </ProtectedRoute>
+              }
+            />
           </Routes>
         </main>
       </BrowserRouter>
