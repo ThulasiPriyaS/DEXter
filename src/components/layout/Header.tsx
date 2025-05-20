@@ -4,6 +4,7 @@ import { useThemeStore } from '../../store/themeStore';
 import { useWalletStore } from '../../store/walletStore';
 import { Button } from '../ui/Button';
 import { useNavigate } from 'react-router-dom';
+<<<<<<< HEAD
 
 export const Header: React.FC = () => {
   const { mode, toggleTheme } = useThemeStore();
@@ -20,6 +21,21 @@ export const Header: React.FC = () => {
       } catch (error) {
         console.error('Failed to connect wallet:', error);
       }
+=======
+import { useWalletStore } from '../../store/walletStore';
+
+export const Header: React.FC = () => {
+  const { mode, toggleTheme } = useThemeStore();
+  const { token } = useWalletStore();
+  const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
+  const navigate = useNavigate();
+
+  const handleAuthClick = () => {
+    if (token) {
+      navigate('/dashboard');
+    } else {
+      navigate('/auth');
+>>>>>>> d863bf59cdf1b560203882ab50b8d86e0ca5daad
     }
   };
 
@@ -43,6 +59,7 @@ export const Header: React.FC = () => {
           <nav className="hidden md:flex items-center space-x-6">
             <Button
               variant="ghost"
+<<<<<<< HEAD
               onClick={() => navigate('/dashboard')}
               className="text-gray-700 dark:text-gray-200 hover:text-indigo-600 dark:hover:text-indigo-400"
             >
@@ -69,6 +86,13 @@ export const Header: React.FC = () => {
                 </div>
               )}
             </div>
+=======
+              onClick={handleAuthClick}
+              className="text-gray-700 dark:text-gray-200 hover:text-indigo-600 dark:hover:text-indigo-400"
+            >
+              {token ? 'Dashboard' : 'Sign In'}
+            </Button>
+>>>>>>> d863bf59cdf1b560203882ab50b8d86e0ca5daad
             <button
               onClick={toggleTheme}
               className="p-2 rounded-full text-gray-700 hover:bg-gray-200 dark:text-gray-200 dark:hover:bg-gray-800"
@@ -95,6 +119,7 @@ export const Header: React.FC = () => {
           <Button
             variant="ghost"
             fullWidth
+<<<<<<< HEAD
             onClick={() => navigate('/dashboard')}
             className="text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
           >
@@ -122,6 +147,13 @@ export const Header: React.FC = () => {
               </div>
             )}
           </div>
+=======
+            onClick={handleAuthClick}
+            className="text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
+          >
+            {token ? 'Dashboard' : 'Sign In'}
+          </Button>
+>>>>>>> d863bf59cdf1b560203882ab50b8d86e0ca5daad
           <Button
             variant="ghost"
             fullWidth

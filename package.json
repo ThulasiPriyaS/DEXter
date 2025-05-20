@@ -28,10 +28,20 @@
     "react-dnd-touch-backend": "^16.0.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.22.3",
+<<<<<<< HEAD
     "reactflow": "^11.11.4",
     "sonner": "^2.0.3",
     "zod": "^3.22.4",
     "zustand": "^4.5.1"
+=======
+    "clsx": "^2.1.0",
+    "express": "^4.18.3",
+    "cors": "^2.8.5",
+    "better-sqlite3": "^9.4.3",
+    "zod": "^3.22.4",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2"
+>>>>>>> d863bf59cdf1b560203882ab50b8d86e0ca5daad
   },
   "devDependencies": {
     "@eslint/js": "^9.9.1",

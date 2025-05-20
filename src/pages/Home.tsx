@@ -2,6 +2,7 @@ import React from 'react';
 import { ArrowRight, Zap, Shield, Code, Workflow } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
+<<<<<<< HEAD
 import { useNavigate } from 'react-router-dom';
 
 export const Home: React.FC = () => {
@@ -9,6 +10,21 @@ export const Home: React.FC = () => {
 
   const handleGetStarted = () => {
     navigate('/dashboard');
+=======
+import { Link, useNavigate } from 'react-router-dom';
+import { useWalletStore } from '../store/walletStore';
+
+export const Home: React.FC = () => {
+  const navigate = useNavigate();
+  const { token } = useWalletStore();
+
+  const handleGetStarted = () => {
+    if (token) {
+      navigate('/dashboard');
+    } else {
+      navigate('/auth');
+    }
+>>>>>>> d863bf59cdf1b560203882ab50b8d86e0ca5daad
   };
 
   return (

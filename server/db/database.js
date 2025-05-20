@@ -87,6 +87,19 @@ export function getWorkflowById(id, walletAddress) {
   };
 }
 
+export function getWorkflowById(id, walletAddress) {
+  const stmt = db.prepare('SELECT * FROM workflows WHERE id = ? AND wallet_address = ?');
+  const workflow = stmt.get(id, walletAddress);
+
+  if (!workflow) return null;
+
+  return {
+    ...workflow,
+    modules: JSON.parse(workflow.modules),
+    connections: JSON.parse(workflow.connections)
+  };
+}
+
 export function deleteWorkflow(id, walletAddress) {
   const stmt = db.prepare('DELETE FROM workflows WHERE id = ? AND wallet_address = ?');
   const result = stmt.run(id, walletAddress);
@@ -95,6 +108,7 @@ export function deleteWorkflow(id, walletAddress) {
 
 export function duplicateWorkflow(id, walletAddress) {
   const workflow = getWorkflowById(id, walletAddress);
+<<<<<<< HEAD
   if (!workflow) return null;
   
   const newId = nanoid();
@@ -103,11 +117,27 @@ export function duplicateWorkflow(id, walletAddress) {
     VALUES (?, ?, ?, ?, ?, ?)
   `);
   
+=======
+  
+  if (!workflow) return null;
+
+  const newId = nanoid();
+  const timestamp = Date.now();
+
+  const stmt = db.prepare(`
+    INSERT INTO workflows (
+      id, wallet_address, name, description, 
+      modules, connections, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+
+>>>>>>> d863bf59cdf1b560203882ab50b8d86e0ca5daad
   stmt.run(
     newId,
     walletAddress,
     `${workflow.name} (Copy)`,
     workflow.description,
+<<<<<<< HEAD
     workflow.modules,
     workflow.connections
   );
@@ -117,4 +147,13 @@ export function duplicateWorkflow(id, walletAddress) {
     id: newId,
     name: `${workflow.name} (Copy)`
   };
+=======
+    JSON.stringify(workflow.modules),
+    JSON.stringify(workflow.connections),
+    timestamp,
+    timestamp
+  );
+
+  return getWorkflowById(newId, walletAddress);
+>>>>>>> d863bf59cdf1b560203882ab50b8d86e0ca5daad
 }
