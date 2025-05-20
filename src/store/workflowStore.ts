@@ -13,7 +13,7 @@ interface WorkflowState {
   deleteWorkflow: (id: string) => void;
   addModule: (workflowId: string, type: ModuleData['type'], position: Position) => string;
   updateModulePosition: (workflowId: string, moduleId: string, position: Position) => void;
-  removeModule: (workflowId: string, moduleId: string) => void;
+  deleteModule: (workflowId: string, moduleId: string) => void;
   addConnection: (workflowId: string, sourceId: string, targetId: string) => string;
   removeConnection: (workflowId: string, connectionId: string) => void;
 }
@@ -66,28 +66,29 @@ export const useWorkflowStore = create<WorkflowState>()(
       
       addModule: (workflowId, type, position) => {
         const moduleId = nanoid();
-        
-        set((state) => ({
-          workflows: state.workflows.map((workflow) => 
-            workflow.id === workflowId
-              ? {
-                  ...workflow,
-                  modules: [
-                    ...workflow.modules,
-                    {
-                      id: moduleId,
-                      type,
-                      position,
-                      label: type.charAt(0).toUpperCase() + type.slice(1),
-                      icon: type,
-                    },
-                  ],
-                  updatedAt: Date.now(),
-                }
-              : workflow
-          ),
-        }));
-        
+        set((state) => {
+          const workflow = state.workflows.find((w) => w.id === workflowId);
+          if (!workflow) return state;
+
+          const newModule: ModuleData = {
+            id: moduleId,
+            type: type,
+            label: type === 'startEndNode' ? 'Start' : type === 'conditionNode' ? 'Condition' : type.charAt(0).toUpperCase() + type.slice(1),
+            position,
+            subType: type === 'startEndNode' ? 'start' : undefined
+          };
+
+          return {
+            workflows: state.workflows.map((w) =>
+              w.id === workflowId
+                ? {
+                    ...w,
+                    modules: [...w.modules, newModule],
+                  }
+                : w
+            ),
+          };
+        });
         return moduleId;
       },
       
@@ -107,7 +108,7 @@ export const useWorkflowStore = create<WorkflowState>()(
         ),
       })),
       
-      removeModule: (workflowId, moduleId) => set((state) => ({
+      deleteModule: (workflowId, moduleId) => set((state) => ({
         workflows: state.workflows.map((workflow) => 
           workflow.id === workflowId
             ? {

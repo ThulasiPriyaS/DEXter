@@ -1,0 +1,154 @@
+.react-flow {
+  transition: width 0.3s ease-in-out;
+  height: calc(100vh - 64px); /* Full height minus header */
+  overflow: auto;
+}
+
+.react-flow.canvas-shrink {
+  width: calc(100% - 400px - 400px) !important; /* Shrink for swap config (400) + liquidity pool (400) */
+}
+
+/* Custom scrollbar styles for canvas */
+.react-flow::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.react-flow::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.react-flow::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+.react-flow::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+.workflow-controls {
+  transition: opacity 0.3s ease-in-out;
+}
+
+.workflow-controls.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Swap interface panel styles (right side, first panel) */
+.swap-interface-panel {
+  position: fixed;
+  right: 400px; /* Position to the left of the liquidity pool panel */
+  top: 64px; /* Below header */
+  bottom: 0;
+  width: 400px;
+  background: white;
+  border-left: 1px solid #E2E8F0;
+  display: flex;
+  flex-direction: column;
+  box-shadow: -2px 0 4px rgba(0, 0, 0, 0.05);
+  z-index: 20; /* Ensure it's above canvas */
+}
+
+.swap-interface-header {
+  background: white;
+  border-bottom: 1px solid #E2E8F0;
+  padding: 16px;
+}
+
+.swap-interface-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  background: white;
+}
+
+.swap-interface-section {
+  background: white;
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  padding: 16px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+/* Liquidity pool panel (far right side, second panel) */
+.liquidity-pool-panel {
+  position: fixed;
+  right: 0;
+  top: 64px; /* Below header */
+  bottom: 0;
+  width: 400px;
+  background: white; /* White background as requested */
+  border-left: 1px solid #E2E8F0;
+  display: flex;
+  flex-direction: column;
+  box-shadow: -2px 0 4px rgba(0, 0, 0, 0.05);
+  z-index: 20; /* Ensure it's above canvas */
+}
+
+.liquidity-pool-header {
+  font-size: 18px; /* Slightly larger header */
+  font-weight: 700; /* Bold */
+  color: #1e293b; /* Dark text */
+  padding: 16px; /* Padding like other headers */
+  border-bottom: 1px solid #E2E8F0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.liquidity-pool-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.liquidity-pool-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr); /* Two columns for better use of vertical space */
+  gap: 16px;
+}
+
+.liquidity-pool-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 12px;
+  transition: all 0.2s ease;
+}
+
+.liquidity-pool-card:hover {
+  border-color: #94a3b8;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.liquidity-pool-card-header {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b; /* Dark text */
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.liquidity-pool-card-content {
+  font-size: 12px;
+  color: #64748b; /* Gray text */
+  line-height: 1.4;
+}
+
+/* Visual connector for related elements */
+.node-connector {
+  position: absolute;
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* Ensure modals are above everything */
+.swap-modal {
+  z-index: 60;
+} 

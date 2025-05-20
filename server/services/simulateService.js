@@ -1,97 +1,82 @@
-import { nanoid } from 'nanoid';
+import { z } from 'zod';
 
-const OPERATION_DELAYS = {
-  swap: 2000,
-  stake: 3000,
-  claim: 1500,
-  bridge: 4000,
-  lend: 2500
-};
+// Validation schema for workflow execution
+const workflowSchema = z.object({
+  modules: z.array(z.object({
+    id: z.string(),
+    type: z.string(),
+    config: z.record(z.any()).optional()
+  })),
+  connections: z.array(z.object({
+    source: z.string(),
+    target: z.string()
+  }))
+});
 
-function simulateTransaction() {
-  return {
-    txHash: '0x' + nanoid(40),
-    blockNumber: Math.floor(Math.random() * 1000000) + 15000000,
-    timestamp: Date.now()
-  };
-}
-
-async function executeOperation(module, previousResults = []) {
-  const delay = OPERATION_DELAYS[module.type] || 2000;
-  
-  // Simulate network delay
-  await new Promise(resolve => setTimeout(resolve, delay));
-  
-  const transaction = simulateTransaction();
-  
-  return {
-    moduleId: module.id,
-    type: module.type,
-    status: 'success',
-    transaction,
-    timestamp: Date.now()
-  };
-}
-
-export async function executeWorkflow(modules, connections) {
-  const results = [];
-  const executionOrder = determineExecutionOrder(modules, connections);
-  
-  for (const module of executionOrder) {
-    try {
-      const result = await executeOperation(module, results);
-      results.push(result);
-    } catch (error) {
-      results.push({
-        moduleId: module.id,
-        type: module.type,
-        status: 'failed',
-        error: error.message,
-        timestamp: Date.now()
-      });
-      break;
-    }
+// Simulate module execution
+async function executeModule(module, input) {
+  // Simulate different module types
+  switch (module.type) {
+    case 'swap':
+      return { success: true, output: { amount: input.amount * 0.99 } }; // 1% fee
+    case 'stake':
+      return { success: true, output: { staked: input.amount } };
+    case 'claim':
+      return { success: true, output: { claimed: input.amount * 0.1 } }; // 10% APY
+    case 'bridge':
+      return { success: true, output: { bridged: input.amount } };
+    case 'lend':
+      return { success: true, output: { lent: input.amount } };
+    case 'condition':
+      return { success: true, output: { condition: true } };
+    default:
+      throw new Error(`Unknown module type: ${module.type}`);
   }
-  
-  return results;
 }
 
-function determineExecutionOrder(modules, connections) {
-  // Simple topological sort implementation
-  const graph = new Map();
-  const inDegree = new Map();
-  
-  // Initialize graphs
-  modules.forEach(module => {
-    graph.set(module.id, []);
-    inDegree.set(module.id, 0);
-  });
-  
-  // Build adjacency list and calculate in-degrees
-  connections.forEach(conn => {
-    graph.get(conn.sourceId).push(conn.targetId);
-    inDegree.set(conn.targetId, (inDegree.get(conn.targetId) || 0) + 1);
-  });
-  
-  // Find modules with no dependencies
-  const queue = modules
-    .filter(module => inDegree.get(module.id) === 0)
-    .map(module => module.id);
-  
-  const order = [];
-  
-  while (queue.length > 0) {
-    const currentId = queue.shift();
-    const currentModule = modules.find(m => m.id === currentId);
-    order.push(currentModule);
+// Execute workflow
+export async function executeWorkflow(workflow) {
+  try {
+    // Validate workflow structure
+    const validatedWorkflow = workflowSchema.parse(workflow);
     
-    for (const neighborId of graph.get(currentId)) {
-      inDegree.set(neighborId, inDegree.get(neighborId) - 1);
-      if (inDegree.get(neighborId) === 0) {
-        queue.push(neighborId);
-      }
+    // Track execution state
+    const state = new Map();
+    const results = [];
+    
+    // Find start node
+    const startNode = validatedWorkflow.modules.find(m => m.type === 'start');
+    if (!startNode) {
+      throw new Error('No start node found in workflow');
     }
+    
+    // Execute workflow
+    let currentNode = startNode;
+    while (currentNode) {
+      // Execute current node
+      const input = state.get(currentNode.id) || { amount: 100 }; // Default input
+      const result = await executeModule(currentNode, input);
+      results.push({ nodeId: currentNode.id, result });
+      
+      // Find next node
+      const nextConnection = validatedWorkflow.connections.find(c => c.source === currentNode.id);
+      if (!nextConnection) break;
+      
+      currentNode = validatedWorkflow.modules.find(m => m.id === nextConnection.target);
+      if (!currentNode) break;
+      
+      // Update state for next node
+      state.set(currentNode.id, result.output);
+    }
+    
+    return {
+      success: true,
+      results
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message
+    };
   }
-  
-  return order;
 }

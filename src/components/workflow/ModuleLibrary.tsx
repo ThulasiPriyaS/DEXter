@@ -1,44 +1,127 @@
 import React from 'react';
-import { useDrag } from 'react-dnd';
-import { Repeat, ArrowDownUp, Trophy, ArrowLeftRight, PiggyBank } from 'lucide-react';
 import { Card } from '../ui/Card';
-import { ModuleType } from '../../types';
 
-interface ModuleItemProps {
-  type: ModuleType;
-  label: string;
-  description: string;
-  icon: React.ReactNode;
-}
+const NODE_TEMPLATES = [
+  {
+    type: 'startEndNode',
+    subType: 'start',
+    label: 'Start',
+    description: 'Start point of the workflow',
+    icon: '▶️',
+  },
+  {
+    type: 'startEndNode',
+    subType: 'end',
+    label: 'End',
+    description: 'End point of the workflow',
+    icon: '⏹️',
+  },
+  {
+    type: 'moduleNode',
+    actionType: 'swap',
+    label: 'Swap',
+    description: 'Swap tokens on DEX',
+    icon: '🔄',
+  },
+  {
+    type: 'moduleNode',
+    actionType: 'stake',
+    label: 'Stake',
+    description: 'Stake tokens for rewards',
+    icon: '💰',
+  },
+  {
+    type: 'moduleNode',
+    actionType: 'claim',
+    label: 'Claim',
+    description: 'Claim rewards or tokens',
+    icon: '🎁',
+  },
+  {
+    type: 'moduleNode',
+    actionType: 'bridge',
+    label: 'Bridge',
+    description: 'Bridge tokens between chains',
+    icon: '🌉',
+  },
+  {
+    type: 'moduleNode',
+    actionType: 'lend',
+    label: 'Lend',
+    description: 'Lend tokens for interest',
+    icon: '🏦',
+  },
+  {
+    type: 'conditionNode',
+    label: 'Condition',
+    description: 'Add conditional logic',
+    icon: '❓',
+  },
+  {
+    type: 'exSatNode',
+    subType: 'issueAsset',
+    label: 'Issue Asset',
+    description: 'Create a new asset on Bitcoin Layer',
+    icon: '₿',
+    exSatMetadata: {
+      action: 'issueAsset',
+      metadata: {
+        name: 'NewAsset',
+        supply: 1000000
+      }
+    }
+  },
+  {
+    type: 'exSatNode',
+    subType: 'swap',
+    label: 'Swap Assets',
+    description: 'Swap between Bitcoin Layer assets',
+    icon: '₿',
+    exSatMetadata: {
+      action: 'swap',
+      metadata: {
+        fromAsset: 'BTC',
+        toAsset: 'TokenX',
+        amount: 1
+      }
+    }
+  },
+  {
+    type: 'exSatNode',
+    subType: 'claim',
+    label: 'Claim Asset',
+    description: 'Claim assets from Bitcoin Layer',
+    icon: '₿',
+    exSatMetadata: {
+      action: 'claim',
+      metadata: {
+        claimId: 'claim_123',
+        amount: 100
+      }
+    }
+  }
+];
 
-const ModuleItem: React.FC<ModuleItemProps> = ({ type, label, description, icon }) => {
-  const [{ isDragging }, drag] = useDrag(() => ({
-    type: 'MODULE',
-    item: { type },
-    collect: (monitor) => ({
-      isDragging: !!monitor.isDragging(),
-    }),
-  }));
+const ModuleItem: React.FC<{ template: any }> = ({ template }) => {
+  const onDragStart = (event: React.DragEvent) => {
+    event.dataTransfer.setData('application/reactflow', JSON.stringify(template));
+    event.dataTransfer.effectAllowed = 'move';
+  };
 
   return (
     <div
-      ref={drag}
-      className={`cursor-grab ${
-        isDragging ? 'opacity-50' : 'opacity-100'
-      }`}
+      draggable
+      onDragStart={onDragStart}
+      className="cursor-move"
     >
-      <Card 
-        variant="bordered"
-        hoverable
-        className="transition-all duration-200"
-      >
-        <div className="flex items-start">
-          <div className="flex-shrink-0 p-3 bg-indigo-100 dark:bg-indigo-900/50 rounded-lg">
-            {icon}
-          </div>
-          <div className="ml-4">
-            <h3 className="font-medium text-gray-800 dark:text-gray-100">{label}</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">{description}</p>
+      <Card className="p-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+        <div className="flex items-center space-x-3">
+          <span role="img" aria-label={template.label} className="text-xl">
+            {template.icon}
+          </span>
+          <div>
+            <h3 className="font-medium text-gray-800 dark:text-gray-100">{template.label}</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400">{template.description}</p>
           </div>
         </div>
       </Card>
@@ -47,54 +130,12 @@ const ModuleItem: React.FC<ModuleItemProps> = ({ type, label, description, icon 
 };
 
 export const ModuleLibrary: React.FC = () => {
-  const modules = [
-    {
-      type: 'swap' as ModuleType,
-      label: 'Swap Tokens',
-      description: 'Exchange one token for another',
-      icon: <ArrowDownUp size={24} className="text-indigo-600 dark:text-indigo-400" />,
-    },
-    {
-      type: 'stake' as ModuleType,
-      label: 'Stake Assets',
-      description: 'Stake assets to earn rewards',
-      icon: <PiggyBank size={24} className="text-emerald-600 dark:text-emerald-400" />,
-    },
-    {
-      type: 'claim' as ModuleType,
-      label: 'Claim Rewards',
-      description: 'Claim earnings from staked assets',
-      icon: <Trophy size={24} className="text-amber-600 dark:text-amber-400" />,
-    },
-    {
-      type: 'bridge' as ModuleType,
-      label: 'Bridge Assets',
-      description: 'Transfer assets between chains',
-      icon: <ArrowLeftRight size={24} className="text-violet-600 dark:text-violet-400" />,
-    },
-    {
-      type: 'lend' as ModuleType,
-      label: 'Lend Assets',
-      description: 'Provide liquidity to earn interest',
-      icon: <Repeat size={24} className="text-cyan-600 dark:text-cyan-400" />,
-    },
-  ];
-
   return (
-    <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
-      <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-white">Module Library</h2>
-      <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-        Drag modules to the canvas to build your workflow
-      </p>
-      <div className="space-y-3">
-        {modules.map((module) => (
-          <ModuleItem
-            key={module.type}
-            type={module.type}
-            label={module.label}
-            description={module.description}
-            icon={module.icon}
-          />
+    <div className="p-4 space-y-4">
+      <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">Module Library</h2>
+      <div className="space-y-2">
+        {NODE_TEMPLATES.map((template) => (
+          <ModuleItem key={`${template.type}-${template.actionType || template.subType}`} template={template} />
         ))}
       </div>
     </div>

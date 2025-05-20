@@ -1,176 +1,334 @@
-import React, { useCallback, useState, useRef } from 'react';
-import { useDrop } from 'react-dnd';
+import React, { useCallback, useRef, useState, useEffect, forwardRef } from 'react';
+import ReactFlow, {
+  ReactFlowProvider,
+  addEdge,
+  useNodesState,
+  useEdgesState,
+  Controls,
+  MiniMap,
+  Background,
+  BackgroundVariant,
+  Connection,
+  Edge,
+  Node,
+  NodeTypes,
+  useReactFlow,
+  NodeChange,
+  EdgeChange,
+  ConnectionMode,
+  OnNodesChange,
+  OnEdgesChange,
+} from 'reactflow';
+import 'reactflow/dist/style.css';
 import { useWorkflowStore } from '../../store/workflowStore';
 import { ModuleNode } from './ModuleNode';
-import { ConnectionLine } from './ConnectionLine';
-import { Position, ModuleType } from '../../types';
+import { ConditionNode } from './ConditionNode';
+import { StartEndNode } from './StartEndNode';
+import { ModuleType, ModuleData } from '../../types';
+import { WorkflowControls } from './WorkflowControls';
+import { ModuleLibrary } from './ModuleLibrary';
+import ExSatNode from './ExSatNode';
+import { toast } from 'sonner';
+import { NodeConfigPanel } from './NodeConfigPanel';
 
-export const WorkflowCanvas: React.FC = () => {
-  const canvasRef = useRef<HTMLDivElement>(null);
+// Node type definitions
+const nodeTypes: NodeTypes = {
+  moduleNode: ModuleNode,
+  conditionNode: ConditionNode,
+  startEndNode: StartEndNode,
+  exSatNode: ExSatNode
+};
+
+interface WorkflowCanvasProps {
+  initialNodes?: Node<ModuleData>[];
+  initialEdges?: Edge[];
+}
+
+export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
+  initialNodes = [],
+  initialEdges = [],
+}) => {
+  const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const activeWorkflowId = useWorkflowStore((state) => state.activeWorkflowId);
   const workflows = useWorkflowStore((state) => state.workflows);
-  const addModule = useWorkflowStore((state) => state.addModule);
-  
-  const [isDrawingConnection, setIsDrawingConnection] = useState(false);
-  const [connectionStartId, setConnectionStartId] = useState<string | null>(null);
-  const [connectionEndPoint, setConnectionEndPoint] = useState<Position>({ x: 0, y: 0 });
-  
   const activeWorkflow = workflows.find((workflow) => workflow.id === activeWorkflowId);
+  const addModule = useWorkflowStore((state) => state.addModule);
+  const updateModulePosition = useWorkflowStore((state) => state.updateModulePosition);
+  const addConnection = useWorkflowStore((state) => state.addConnection);
+  const deleteModule = useWorkflowStore((state) => state.deleteModule);
+  const reactFlowInstance = useReactFlow();
   
-  const [, drop] = useDrop(() => ({
-    accept: 'MODULE',
-    drop: (item: { type: ModuleType }, monitor) => {
-      if (!activeWorkflowId || !canvasRef.current) return;
-      
-      const canvasRect = canvasRef.current.getBoundingClientRect();
-      const offset = monitor.getClientOffset();
-      
-      if (!offset) return;
-      
-      const position: Position = {
-        x: offset.x - canvasRect.left,
-        y: offset.y - canvasRect.top,
-      };
-      
-      addModule(activeWorkflowId, item.type, position);
-    },
-  }));
+  const [nodes, setNodes, onNodesChange] = useNodesState<ModuleData>(initialNodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+  const [selectedNode, setSelectedNode] = useState<Node<ModuleData> | null>(null);
+  const { getNode } = useReactFlow();
   
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (!isDrawingConnection || !canvasRef.current) return;
+  // Handle connections between nodes
+  const onConnect = useCallback((params: Connection) => {
+    if (!activeWorkflowId) return;
     
-    const canvasRect = canvasRef.current.getBoundingClientRect();
+    const newEdge = {
+      ...params,
+      id: `e-${Math.random().toString(36).substr(2, 9)}`,
+      animated: true,
+      style: { strokeWidth: 2 },
+    };
     
-    setConnectionEndPoint({
-      x: e.clientX - canvasRect.left,
-      y: e.clientY - canvasRect.top,
-    });
-  }, [isDrawingConnection]);
+    setEdges((eds) => addEdge(newEdge, eds));
+    addConnection(activeWorkflowId, params.source!, params.target!);
+    
+    // Log the new connection for debugging
+    console.log('Added new connection:', newEdge);
+    console.log('Current edges:', edges);
+  }, [activeWorkflowId, addConnection, setEdges, edges]);
   
-  const startConnection = useCallback((moduleId: string, startPos: Position) => {
-    setIsDrawingConnection(true);
-    setConnectionStartId(moduleId);
-    setConnectionEndPoint(startPos);
+  // Handle dropping nodes onto canvas
+  const onDragOver = useCallback((event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
   }, []);
   
-  const endConnection = useCallback((targetModuleId: string) => {
-    if (!isDrawingConnection || !connectionStartId || !activeWorkflowId) return;
+  const onDrop = useCallback(
+    (event: React.DragEvent) => {
+      event.preventDefault();
+
+      const reactFlowBounds = reactFlowWrapper.current?.getBoundingClientRect();
+      const data = event.dataTransfer.getData('application/reactflow');
+
+      if (typeof data === 'undefined' || !data) {
+        return;
+      }
+
+      try {
+        const nodeData = JSON.parse(data);
+        const position = reactFlowInstance.project({
+          x: event.clientX - (reactFlowBounds?.left || 0),
+          y: event.clientY - (reactFlowBounds?.top || 0),
+        });
+
+        // Check if we're trying to add a start or end node
+        if (nodeData.type === 'startEndNode') {
+          const existingNode = nodes.find(
+            (node) => node.type === 'startEndNode' && node.data?.subType === nodeData.subType
+          );
+          if (existingNode) {
+            console.log(`Only one ${nodeData.subType} node is allowed`);
+            return;
+          }
+        }
+
+        if (!activeWorkflowId) return;
+        // Add the module to the workflow store
+        const moduleId = addModule(activeWorkflowId, nodeData.type as ModuleType, position);
+        
+        // Add the node to ReactFlow
+        const newNode = {
+          id: moduleId,
+          type: nodeData.type,
+          position,
+          data: {
+            ...nodeData,
+            id: moduleId,
+          },
+        };
+
+        console.log('Adding new node:', newNode);
+        setNodes((nds) => nds.concat(newNode));
+      } catch (error) {
+        console.error('Error adding node:', error);
+      }
+    },
+    [reactFlowInstance, nodes, addModule, activeWorkflowId]
+  );
+  
+  // Handle node position updates
+  const onNodeDragStop = useCallback((event: React.MouseEvent, node: Node) => {
+    if (!activeWorkflowId) return;
+    updateModulePosition(activeWorkflowId, node.id, node.position);
+  }, [activeWorkflowId, updateModulePosition]);
+
+  // Handle node deletion
+  const onNodesDelete = useCallback((nodesToDelete: Node[]) => {
+    if (!activeWorkflowId) return;
     
-    // Prevent connecting a module to itself
-    if (connectionStartId === targetModuleId) {
-      setIsDrawingConnection(false);
-      setConnectionStartId(null);
+    nodesToDelete.forEach(node => {
+      // Remove the node from our workflow store
+      deleteModule(activeWorkflowId, node.id);
+    });
+  }, [activeWorkflowId, deleteModule]);
+
+  // Add debug logging for node changes
+  useEffect(() => {
+    console.log('Nodes updated:', nodes);
+    console.log('Edges updated:', edges);
+  }, [nodes, edges]);
+
+  const handleExecute = useCallback(async (workflowData: any) => {
+    if (!activeWorkflowId) return;
+
+    try {
+      // Check for exSat nodes and prepare metadata
+      const exSatNodes = workflowData.nodes.filter((node: Node) => node.type === 'exSatNode');
+      if (exSatNodes.length > 0) {
+        const exSatMetadata = exSatNodes.map((node: Node) => ({
+          nodeId: node.id,
+          ...node.data.exSatMetadata
+        }));
+        
+        console.log('exSat Metadata:', exSatMetadata);
+        toast.info('Workflow contains exSat operations', {
+          description: 'This workflow can be executed on the Bitcoin Layer',
+          duration: 5000,
+        });
+      }
+
+      const response = await fetch(`/api/workflows/${activeWorkflowId}/execute`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(workflowData),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to execute workflow');
+      }
+
+      const result = await response.json();
+      console.log('Workflow execution result:', result);
+      
+      return result;
+    } catch (error) {
+      console.error('Error executing workflow:', error);
+      throw error;
+    }
+  }, [activeWorkflowId]);
+  
+  // Add programmatic execution method
+  const executeWorkflowProgrammatically = useCallback(async () => {
+    if (!activeWorkflowId) {
+      console.error('No active workflow selected');
       return;
     }
-    
-    const addConnection = useWorkflowStore.getState().addConnection;
-    addConnection(activeWorkflowId, connectionStartId, targetModuleId);
-    
-    setIsDrawingConnection(false);
-    setConnectionStartId(null);
-  }, [isDrawingConnection, connectionStartId, activeWorkflowId]);
-  
-  const cancelConnection = useCallback(() => {
-    setIsDrawingConnection(false);
-    setConnectionStartId(null);
+
+    try {
+      console.log('=== Programmatic Workflow Execution ===');
+      const workflowData = {
+        nodes: nodes.map(node => ({
+          id: node.id,
+          type: node.type,
+          data: node.data,
+          position: node.position
+        })),
+        edges: edges.map(edge => ({
+          id: edge.id,
+          source: edge.source,
+          target: edge.target
+        }))
+      };
+
+      console.log('Executing workflow with data:', workflowData);
+      await handleExecute(workflowData);
+    } catch (error) {
+      console.error('Programmatic execution failed:', error);
+      throw error;
+    }
+  }, [activeWorkflowId, nodes, edges, handleExecute]);
+
+  const handleNodeClick = useCallback((event: React.MouseEvent, node: Node<ModuleData>) => {
+    setSelectedNode(node);
   }, []);
-  
+
+  const handleNodeConfigUpdate = useCallback((nodeId: string, config: any) => {
+    setNodes((nds) =>
+      nds.map((node) => {
+        if (node.id === nodeId) {
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              config,
+            },
+          };
+        }
+        return node;
+      })
+    );
+  }, [setNodes]);
+
   if (!activeWorkflow) {
     return (
-      <div className="h-full flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-lg font-medium text-gray-700 dark:text-gray-300">No workflow selected</h2>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Create a new workflow or select an existing one</p>
-        </div>
+      <div className="w-full h-full flex items-center justify-center">
+        <p className="text-gray-500">Select or create a workflow to begin</p>
       </div>
     );
   }
   
   return (
-    <div 
-      ref={(node) => {
-        drop(node);
-        canvasRef.current = node;
-      }}
-      className="relative h-full w-full bg-gray-50 dark:bg-gray-900 overflow-hidden"
-      onMouseMove={handleMouseMove}
-      onClick={cancelConnection}
-    >
-      <div className="absolute inset-0 grid grid-cols-[repeat(40,minmax(0,1fr))] grid-rows-[repeat(40,minmax(0,1fr))] gap-4 p-4 pointer-events-none">
-        {Array.from({ length: 40 }).map((_, x) =>
-          Array.from({ length: 40 }).map((_, y) => (
-            <div
-              key={`${x}-${y}`}
-              className="h-full w-full border border-dashed border-gray-200 dark:border-gray-800 rounded-sm opacity-30"
-            />
-          ))
-        )}
-      </div>
-      
-      {/* Connection lines */}
-      {activeWorkflow.connections.map((connection) => {
-        const sourceModule = activeWorkflow.modules.find((m) => m.id === connection.sourceId);
-        const targetModule = activeWorkflow.modules.find((m) => m.id === connection.targetId);
-        
-        if (!sourceModule || !targetModule) return null;
-        
-        const sourcePosition: Position = {
-          x: sourceModule.position.x + 100, // Adjust based on module width
-          y: sourceModule.position.y + 40,  // Adjust based on module height
-        };
-        
-        const targetPosition: Position = {
-          x: targetModule.position.x,
-          y: targetModule.position.y + 40,  // Adjust based on module height
-        };
-        
-        return (
-          <ConnectionLine
-            key={connection.id}
-            id={connection.id}
-            source={sourcePosition}
-            target={targetPosition}
-            workflowId={activeWorkflow.id}
+    <div className="w-full h-full relative">
+      <div ref={reactFlowWrapper} className="w-full h-full">
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChange as OnNodesChange}
+          onEdgesChange={onEdgesChange as OnEdgesChange}
+          onConnect={onConnect}
+          onNodeDragStop={onNodeDragStop}
+          onNodesDelete={onNodesDelete}
+          onDrop={onDrop}
+          onDragOver={onDragOver}
+          onNodeClick={handleNodeClick}
+          nodeTypes={nodeTypes}
+          fitView
+          deleteKeyCode={['Backspace', 'Delete']}
+          connectionMode={ConnectionMode.Loose}
+        >
+          <Background />
+          <Controls />
+          <MiniMap 
+            nodeColor={(node) => {
+              switch (node.type) {
+                case 'moduleNode':
+                  return '#4f46e5'; // indigo-600
+                case 'startEndNode':
+                  return node.data.subType === 'start' ? '#059669' : '#dc2626'; // emerald-600 or red-600
+                case 'conditionNode':
+                  return '#7c3aed'; // violet-600
+                case 'exSatNode':
+                  return '#f59e0b'; // amber-500
+                default:
+                  return '#6b7280'; // gray-500
+              }
+            }}
+            nodeStrokeWidth={3}
+            nodeStrokeColor="#ffffff"
+            maskColor="rgba(0, 0, 0, 0.1)"
+            style={{
+              backgroundColor: 'rgba(255, 255, 255, 0.9)',
+              borderRadius: '8px',
+              border: '2px solid #e5e7eb',
+            }}
           />
-        );
-      })}
-      
-      {/* Drawing connection line */}
-      {isDrawingConnection && connectionStartId && (
-        <ConnectionLine
-          id="drawing"
-          source={
-            (() => {
-              const sourceModule = activeWorkflow.modules.find(
-                (m) => m.id === connectionStartId
-              );
-              if (!sourceModule) return { x: 0, y: 0 };
-              
-              return {
-                x: sourceModule.position.x + 100, // Adjust based on module width
-                y: sourceModule.position.y + 40,  // Adjust based on module height
-              };
-            })()
-          }
-          target={connectionEndPoint}
-          isDrawing
-        />
+        </ReactFlow>
+      </div>
+
+      {selectedNode && (
+        <div className="absolute right-4 top-4 w-80">
+          <NodeConfigPanel
+            node={selectedNode.data}
+            onClose={() => setSelectedNode(null)}
+            onUpdate={handleNodeConfigUpdate}
+          />
+        </div>
       )}
-      
-      {/* Module nodes */}
-      {activeWorkflow.modules.map((module) => (
-        <ModuleNode
-          key={module.id}
-          id={module.id}
-          type={module.type}
-          label={module.label}
-          position={module.position}
-          workflowId={activeWorkflow.id}
-          startConnection={startConnection}
-          endConnection={endConnection}
-          isDraggingConnection={isDrawingConnection}
-        />
-      ))}
     </div>
   );
 };
+
+// Wrap the component with ReactFlowProvider
+export const WorkflowCanvasWithProvider: React.FC = () => (
+  <ReactFlowProvider>
+    <WorkflowCanvas />
+  </ReactFlowProvider>
+);
